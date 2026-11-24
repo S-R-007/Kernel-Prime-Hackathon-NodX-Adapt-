@@ -1,0 +1,169 @@
+#include "runtime.hpp"
+#include <algorithm>
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
+
+namespace {
+constexpr size_t telemetryBytes = 5120; // an oversize frame is dropped, so keep real headroom
+constexpr size_t transmitBudgetBytes = 64;
+struct Frame {
+    char data[telemetryBytes]{};
+    size_t size = 0;
+};
+Frame acknowledgements[2], snapshot, current;
+unsigned head = 0, count = 0;
+size_t sent = 0;
+void append(char* buffer, size_t capacity, size_t& used, const char* format, ...) {
+    if (used >= capacity) {
+        return;
+    }
+    va_list arguments;
+    va_start(arguments, format);
+    int written = vsnprintf(buffer + used, capacity - used, format, arguments);
+    va_end(arguments);
+    if (written < 0) {
+        used = capacity;
+        return;
+    }
+    used += size_t(written);
+}
+void enqueue(const char* data, size_t size, bool acknowledgement) {
+    Frame* target = &snapshot;
+    if (acknowledgement) {
+        if (count == 2) {
+            return; // Parser stops accepting lines while the queue is full.
+        }
+        target = &acknowledgements[(head + count) % 2];
+        ++count;
+    }
+    memcpy(target->data, data, size);
+    target->size = size;
+}
+} // namespace
+bool acknowledgementCapacity() {
+    return count < 2;
+}
+void transmitTelemetry() {
+    // Finish the current JSON line, then prefer acknowledgements over snapshots.
+    if (current.size == 0) {
+        if (count) {
+            current = acknowledgements[head];
+            head = (head + 1) % 2;
+            --count;
+        } else {
+            current = snapshot;
+            snapshot.size = 0;
+        }
+        sent = 0;
+    }
+    if (current.size == 0) {
+        return;
+    }
+    size_t available = size_t(std::max(0, Serial.availableForWrite()));
+    size_t bytes = std::min({available, transmitBudgetBytes, current.size - sent});
+    if (bytes == 0) {
+        return;
+    }
+    sent += Serial.write(reinterpret_cast<const uint8_t*>(current.data + sent), bytes);
+    if (sent == current.size) {
+        current.size = 0;
+    }
+}
+void diagnostic(uint32_t now, bool ok, uint32_t requestId) {
+    static char buffer[telemetryBytes]; // static: keeps the loop task stack small
+    size_t used = 0;
+    auto& s = *systemEngine;
+#ifdef NODX_SIMULATED
+    const char* source = "FIRMWARE_SIMULATED";
+#else
+    const char* source = "HARDWARE";
+#endif
+    append(buffer, sizeof(buffer), used,
+           "{\"protocol\":1,\"protocolRevision\":4,\"requestId\":%lu,\"source\":\"%s\",\"ok\":%s,"
+           "\"firmware\":\"0.2.0\",\"timeMs\":%lu,\"state\":\"%s\",\"calibration\":\"%s\","
+           "\"reason\":\"%s\",\"faults\":%lu,\"dwell\":\"%s\",\"cancellations\":%lu,\"hasProfile\":"
+           "%s,\"connected\":%s,",
+           (unsigned long)requestId, source, ok ? "true" : "false", (unsigned long)now,
+           name(s.state), name(s.calibration.phase), s.diagnostics.reason,
+           (unsigned long)s.diagnostics.faults, name(s.selection.dwell),
+           (unsigned long)s.selection.cancellations, s.hasProfile ? "true" : "false",
+           ble.connected() ? "true" : "false");
+    append(buffer, sizeof(buffer), used,
+           "\"faultCode\":\"%s\",\"cursor\":\"%s\",\"calibrationReason\":\"%s\","
+           "\"calibrationProgress\":%.5f,\"calibrationCueMs\":%lu,\"dwellProgress\":%.5f,\"stability\":%.5f,\"motion\":[%."
+           "5f,%.5f,%.5f],\"reports\":[],\"profile\":{\"schema\":1,",
+           name(s.diagnostics.faultCode), s.diagnostics.cursor, s.calibration.reason,
+           s.calibration.progress(now), (unsigned long)s.calibration.cueRemainingMs(now),
+           s.dwellProgress(now),
+           s.diagnostics.motion.stability, s.diagnostics.motion.x, s.diagnostics.motion.y,
+           s.diagnostics.motion.roll);
+    auto& p = s.profile;
+    append(buffer, sizeof(buffer), used,
+           "\"bias\":[%.5f,%.5f,%.5f],\"deadzone\":[%.5f,%.5f],\"gain\":[%.5f,%.5f,%.5f,%.5f],"
+           "\"alpha\":%.5f,\"precisionThreshold\":%.5f,\"fastThreshold\":%.5f,\"dwellTolerance\":%."
+           "5f,\"dwellMs\":%lu,\"scrollThreshold\":%.5f,\"scrollGain\":%.5f,\"dwellEnabled\":%s,"
+           "\"scrollEnabled\":%s}",
+           p.bias[0], p.bias[1], p.bias[2], p.deadzone[0], p.deadzone[1], p.gain[0], p.gain[1],
+           p.gain[2], p.gain[3], p.alpha, p.precisionThreshold, p.fastThreshold, p.dwellTolerance,
+           (unsigned long)p.dwellMs, p.scrollThreshold, p.scrollGain,
+           p.dwellEnabled ? "true" : "false", p.scrollEnabled ? "true" : "false");
+    static char hands[handsFreeJsonCapacity]; // static: keeps the loop task stack small
+    const size_t handsLength = handsFreeJson(hands, sizeof(hands), s.handsFreeStatus());
+    append(buffer, sizeof(buffer), used, ",\"handsFree\":%s", handsLength ? hands : "{}");
+    static char mapping[mappingJsonCapacity];
+    const size_t mappingLength = mappingJson(mapping, sizeof(mapping), s.mappingStatus(now));
+    append(buffer, sizeof(buffer), used, ",\"mapping\":%s", mappingLength ? mapping : "{}");
+    static char click[clickJsonCapacity];
+    const size_t clickLength = clickJson(click, sizeof(click), s.clickStatus(now));
+    append(buffer, sizeof(buffer), used, ",\"click\":%s", clickLength ? click : "{}");
+    static char actions[actionsJsonCapacity];
+    const size_t actionsLength = actionsJson(actions, sizeof(actions), s.actionsStatus(now));
+    append(buffer, sizeof(buffer), used, ",\"actions\":%s", actionsLength ? actions : "{}");
+    static char quick[quickJsonCapacity];
+    const size_t quickLength = quickJson(quick, sizeof(quick), s.quickStatus(now));
+    append(buffer, sizeof(buffer), used, ",\"quick\":%s", quickLength ? quick : "{}");
+#ifndef NODX_SIMULATED
+    append(buffer, sizeof(buffer), used, ",\"capture\":{\"active\":%s,\"count\":%lu,\"capacity\":%lu",
+           captureState.active ? "true" : "false", (unsigned long)captureState.count,
+           (unsigned long)captureCapacity);
+    if (captureState.pageOffset != size_t(-1) && requestId != 0) {
+        append(buffer, sizeof(buffer), used, ",\"offset\":%lu,\"rows\":[",
+               (unsigned long)captureState.pageOffset);
+        const size_t end = std::min(captureState.count, captureState.pageOffset + capturePage);
+        for (size_t i = captureState.pageOffset; i < end; ++i) {
+            const CaptureRow& r = captureRows[i];
+            append(buffer, sizeof(buffer), used, "%s[%lu,%d,%d,%d,%d,%d,%d]", i == captureState.pageOffset ? "" : ",",
+                   (unsigned long)r.t, r.g[0], r.g[1], r.g[2], r.a[0], r.a[1], r.a[2]);
+        }
+        append(buffer, sizeof(buffer), used, "]");
+        captureState.pageOffset = size_t(-1);
+    }
+    append(buffer, sizeof(buffer), used, "}");
+#endif
+#ifndef NODX_SIMULATED
+    // Raw sensor view for bench sessions (sensor coordinates, before the axis mapping).
+    const auto& snap = sensorSnapshot;
+    append(buffer, sizeof(buffer), used,
+           ",\"sensor\":{\"variant\":\"%s\",\"seen\":%s,\"frames\":%lu,\"ageMs\":%lu,"
+           "\"gyro\":[%.2f,%.2f,%.2f],\"accel\":[%.4f,%.4f,%.4f],"
+           "\"angle\":[%.3f,%.3f,%.3f]}",
+           name(mpu.variant()), snap.seen ? "true" : "false", (unsigned long)snap.frames,
+           (unsigned long)(snap.seen ? uint32_t(now - snap.lastAtMs) : 0), snap.last.gyro[0],
+           snap.last.gyro[1], snap.last.gyro[2], snap.last.accel[0], snap.last.accel[1],
+           snap.last.accel[2], snap.angle[0], snap.angle[1], snap.angle[2]);
+    const auto& map = s.axes;
+    append(buffer, sizeof(buffer), used,
+           ",\"axes\":{\"valid\":%s,\"gyro\":[%u,%u,%u],\"gyroSigns\":[%.0f,%.0f,%.0f],"
+           "\"accel\":[%u,%u,%u],\"accelSigns\":[%.0f,%.0f,%.0f]}",
+           map.valid() ? "true" : "false", map.axes[0], map.axes[1], map.axes[2], map.signs[0],
+           map.signs[1], map.signs[2], map.accelAxes[0], map.accelAxes[1], map.accelAxes[2],
+           map.accelSigns[0], map.accelSigns[1], map.accelSigns[2]);
+    append(buffer, sizeof(buffer), used, ",\"reset\":\"%s\"", bootResetReason);
+#endif
+    append(buffer, sizeof(buffer), used, "}\n");
+    if (used >= sizeof(buffer)) {
+        return;
+    }
+    enqueue(buffer, used, requestId != 0);
+}

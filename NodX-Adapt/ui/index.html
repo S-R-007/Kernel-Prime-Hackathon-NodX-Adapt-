@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>NodX Adapt · Motion, made personal</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <a class="brand" href="#"
+          ><span class="mark">◈</span
+          ><span>NODX <b>ADAPT</b><small>ADAPTIVE HUMAN INTERFACE / V1</small></span></a
+        >
+        <div class="header-right">
+          <span class="tag" id="deviceSource">SIMULATED DEVICE</span
+          ><span id="connection" class="status"><i></i>ENGINE CONNECTED</span
+          ><button id="reconnect" class="quiet" title="Reopen the USB link; the board reboots into its safe state">↻ Reconnect device</button
+          ><button id="pause" class="quiet">Ⅱ Pause</button>
+        </div>
+      </header>
+      <div id="uncalBanner" class="uncal-banner" role="alert" hidden>
+        <strong id="uncalBannerText">UNCALIBRATED DEMO — LIVE SENSOR</strong>
+        <span id="uncalPermissionNote">Movement only. Not a calibration. Nothing is saved.</span>
+        <button id="uncalStopBanner" class="uncal-stop">Stop demo</button>
+      </div>
+      <div class="layout">
+        <aside>
+          <div class="aside-label">YOUR CONTROL SPACE</div>
+          <nav>
+            <button class="nav active" data-view="setup">
+              <span>01</span> Setup & calibration <b>↗</b></button
+            ><button class="nav" data-view="control">
+              <span>02</span> Control studio <b>↗</b></button
+            ><button class="nav" data-view="lab"><span>03</span> Performance lab <b>↗</b></button
+            ><button class="nav" data-view="handsfree">
+              <span>04</span> Hands-free setup <b>↗</b>
+            </button>
+          </nav>
+          <div class="device-card">
+            <span class="eyebrow">NODX DEVICE</span>
+            <div class="chip">◇</div>
+            <strong>ESP32-S3 + MPU6050</strong>
+            <p id="deviceDetail">Virtual sensor · Shared firmware engine</p>
+            <dl>
+              <div>
+                <dt>System state</dt>
+                <dd id="systemState">BOOT</dd>
+              </div>
+              <div>
+                <dt>Saved profile</dt>
+                <dd id="profileState">Checking</dd>
+              </div>
+              <div>
+                <dt>Safety events</dt>
+                <dd id="faultCount">0</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="access">
+            <label><input type="checkbox" id="reduced" /> Reduced motion</label
+            ><label><input type="checkbox" id="glow" checked /> Soft glow</label
+            ><label
+              >UI scale
+              <select id="scale">
+                <option value="1">100%</option>
+                <option value="1.15">115%</option>
+                <option value="1.3">130%</option>
+              </select></label
+            >
+          </div>
+          <div class="aside-foot">
+            PRE-HARDWARE EDITION <span>0.2.0</span>
+            <p>Real-world performance awaits hardware testing.</p>
+          </div>
+        </aside>
+        <main>
+          <section id="setup" class="view">
+            <div class="page-top">
+              <div>
+                <span class="eyebrow">01 / SETUP & CALIBRATION</span>
+                <h1>Control that adapts<br />to <em>you.</em></h1>
+                <p>Find your natural movement. Build your motion profile.</p>
+              </div>
+              <div class="session">
+                <span class="eyebrow">SESSION STATUS</span
+                ><strong id="sessionStatus">Ready to calibrate</strong
+                ><span>All parameters are experimental START values.</span>
+              </div>
+            </div>
+            <div class="steps">
+              <span class="done">01 Connect</span><span class="done">02 System check</span
+              ><span id="stepCal">03 Calibrate</span><span id="stepProfile">04 Profile</span
+              ><span>05 Control test</span><span>06 Performance</span>
+            </div>
+            <article class="panel uncal" id="mapPanel" hidden>
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">GUIDED SETUP</span>
+                  <h2>Teach the movements</h2>
+                </div>
+                <span class="tag" id="mapTag">OFF</span>
+              </div>
+              <p>
+                Teach right, left, up and down (three examples each, then one check each). The
+                firmware learns which rotation means horizontal and vertical for however the board is
+                mounted. Changing the mounting needs a new teaching. Nothing here moves the pointer
+                until you start configured control.
+              </p>
+              <h3 id="mapTitle"></h3>
+              <div class="map-big" id="mapBig"></div>
+              <div class="uncal-bar"><i id="mapBar"></i></div>
+              <p id="mapInstruction" class="uncal-status"></p>
+              <div class="map-preview" id="mapPreview" hidden><i id="mapDot"></i></div>
+              <div class="uncal-actions">
+                <button id="mapStart" class="primary">Start guided setup</button>
+                <button id="mapAccept" class="primary">Accept preview</button>
+                <button id="mapCancel" class="quiet">Cancel</button>
+                <button id="mapSave" class="quiet">Save settings</button>
+                <button id="mapClear" class="quiet">Forget</button>
+              </div>
+              <p id="mapSettings" class="uncal-note"></p>
+              <p id="mapStored" class="uncal-note"></p>
+              <div class="uncal-actions">
+                <button id="mapControl" class="primary">Start configured control</button>
+                <button id="mapControlStop" class="uncal-stop">Stop control</button>
+              </div>
+              <p id="mapBlocked" class="uncal-note"></p>
+            </article>
+            <article class="panel uncal" id="actionsPanel" hidden>
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">EXPERIMENTAL · OFF BY DEFAULT · MEMORY ONLY</span>
+                  <h2>Dwell action palette</h2>
+                </div>
+                <span class="tag" id="actionsTag">OFF</span>
+              </div>
+              <p>
+                One dwell does everything: hold the pointer still on a target to act on it, or on a palette
+                control to choose Left-click, Right-click, Double-click, Drag, Scroll or Stop. No physical
+                click is needed. Settings are temporary; nothing is saved and the palette is off at every
+                start and after every stop. While it is on, dwell clicking and the gesture clicks are off.
+              </p>
+              <h3 id="actionsBanner"></h3>
+              <p id="actionsDetail" class="uncal-status"></p>
+              <div class="uncal-actions">
+                <button id="actionsOpen" class="primary">Open the palette window</button>
+                <button id="actionsStop" class="uncal-stop">Stop control</button>
+              </div>
+              <label><input type="checkbox" id="actionsEnable" disabled /> Enable dwell action palette (EXPERIMENTAL)</label>
+              <label><input type="checkbox" id="actionsKeep" disabled /> Keep selected action (Right-click and Double-click only; off by default)</label>
+              <div class="uncal-actions">
+                <label>Dwell duration (500–5000 ms) <input type="number" id="actionsMs" min="500" max="5000" step="100" value="1200" /></label>
+                <label>Movement tolerance (2–50) <input type="number" id="actionsTol" min="2" max="50" step="1" value="8" /></label>
+                <button id="actionsApply" class="quiet">Apply</button>
+              </div>
+              <div class="uncal-bar"><i id="actionsBar"></i></div>
+              <p id="actionsNote" class="uncal-note"></p>
+              <p id="actionsStats" class="uncal-note"></p>
+              <p id="actionsBlocked" class="uncal-note"></p>
+            </article>
+            <article class="panel uncal" id="quickPanel" hidden>
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">EXPERIMENTAL · OFF BY DEFAULT · MEMORY ONLY</span>
+                  <h2>Quick gesture click</h2>
+                </div>
+                <span class="tag" id="quickTag">OFF</span>
+              </div>
+              <p>
+                One quick movement in a direction you choose, and straight back, clicks once. Practise it
+                once (any comfortable movement; its direction is learned in 3-D and checked against your
+                own measured pointing). While a possible gesture is being recognised the
+                pointer pauses and that movement is thrown away, never replayed. Movement that
+                happened before the gesture was detected cannot be undone. It is exclusive with dwell
+                and with the trained gesture, and drag, scrolling, right-click and double-click stay
+                off.
+              </p>
+              <h3 id="quickTitle"></h3>
+              <div class="map-big" id="quickBig"></div>
+              <div class="uncal-bar"><i id="quickBar"></i></div>
+              <p id="quickInstruction" class="uncal-status"></p>
+              <p id="quickPracticeLine" class="uncal-note"></p>
+              <p id="quickDirection" class="uncal-status"></p>
+              <div class="uncal-actions">
+                <button id="quickPracticeFallback" class="primary">Practise for the fallback</button>
+                <button id="quickPracticeConfigured" class="quiet">Practise for configured control</button>
+                <button id="quickAccept" class="primary">Accept</button>
+                <button id="quickRetry" class="quiet">Retry tilt</button>
+                <button id="quickCancel" class="quiet">Cancel</button>
+                <button id="quickClear" class="quiet">Forget</button>
+              </div>
+              <label><input type="checkbox" id="quickEnable" disabled /> Enable quick gesture click (EXPERIMENTAL)</label>
+              <div class="uncal-actions">
+                <label>Sensitivity (0.5–2.0) <input type="number" id="quickSens" min="0.5" max="2" step="0.05" value="1" /></label>
+                <label>Return tolerance (0.15–0.6) <input type="number" id="quickTol" min="0.15" max="0.6" step="0.05" value="0.35" /></label>
+                <label>Direction tolerance (10–60°) <input type="number" id="quickAngle" min="10" max="60" step="5" value="30" /></label>
+                <button id="quickApply" class="quiet">Apply</button>
+              </div>
+              <p id="quickStats" class="uncal-note"></p>
+              <p id="quickBlocked" class="uncal-note"></p>
+            </article>
+            <details class="panel older-recognizer" id="olderClick" hidden>
+              <summary>
+                Older trained-gesture recognizer (collapsed): a different recogniser, NOT the quick
+                gesture. Leave it closed while testing the quick gesture.
+              </summary>
+            <article class="panel uncal" id="clickPanel" hidden>
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">OPTIONAL · OFF BY DEFAULT</span>
+                  <h2>Gesture click</h2>
+                </div>
+                <span class="tag" id="clickTag">OFF</span>
+              </div>
+              <p>
+                Teach one deliberate gesture (a quick side tilt and return, or your own) with five
+                examples and two checks. It is then checked against ordinary pointing. It lives in memory
+                only, never saves, and clicks nothing until you enable it while control is running. While
+                a possible gesture is being recognised the pointer pauses; that movement is discarded.
+              </p>
+              <h3 id="clickTitle"></h3>
+              <div class="map-big" id="clickBig"></div>
+              <div class="uncal-bar"><i id="clickBar"></i></div>
+              <p id="clickInstruction" class="uncal-status"></p>
+              <div class="uncal-actions">
+                <button id="clickTrainFallback" class="primary">Teach for the fallback</button>
+                <button id="clickTrainConfigured" class="quiet">Teach for configured control</button>
+                <button id="clickAccept" class="primary">Accept gesture</button>
+                <button id="clickCancel" class="quiet">Cancel</button>
+                <button id="clickClear" class="quiet">Forget gesture</button>
+              </div>
+              <label><input type="checkbox" id="clickEnable" disabled /> Enable gesture click (temporary)</label>
+              <p id="clickStats" class="uncal-note"></p>
+              <p id="clickBlocked" class="uncal-note"></p>
+            </article>
+            </details>
+            <article class="panel uncal" id="uncalPanel" hidden>
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">TEMPORARY BENCH DEMO</span>
+                  <h2>Start without calibration</h2>
+                </div>
+                <span class="tag" id="uncalTag">OFF</span>
+              </div>
+              <p>
+                The real sensor moves the Mac pointer with conservative fixed settings, even
+                without a calibration. Pointer movement only: no clicks, dwell, drag or scrolling.
+                Clicking Start authorises movement from this page: the physical enable button is not
+                needed to start this temporary demo. A press of that button stops it at once, and so do
+                Stop demo, any fault, a disconnect or a calibration; each needs another Start. It also
+                works when calibration is missing or failed, or the saved profile is corrupt (reported
+                separately, never used or overwritten).
+              </p>
+              <p id="uncalStatus" class="uncal-status"></p>
+              <p id="uncalCalibration" class="uncal-note"></p>
+              <div class="uncal-actions">
+                <button id="uncalStart" class="primary">Start without calibration</button>
+                <button id="uncalStop" class="uncal-stop">Stop demo</button>
+              </div>
+              <div class="uncal-dwell">
+                <span class="eyebrow">POINTER DIRECTION (TEMPORARY)</span>
+                <label><input type="checkbox" id="uncalRevX" /> Reverse horizontal</label>
+                <label><input type="checkbox" id="uncalRevY" /> Reverse vertical</label>
+              </div>
+              <div class="uncal-dwell">
+                <span class="eyebrow">POINTER SPEED (TEMPORARY, FALLBACK ONLY)</span>
+                <div class="uncal-actions">
+                  <input type="range" id="uncalSpeed" min="0.25" max="2" step="0.05" value="1" aria-label="Pointer speed" />
+                  <output id="uncalSpeedValue">1.00×</output>
+                  <button id="uncalSpeedReset" class="quiet">Reset to 1×</button>
+                </div>
+                <small id="uncalSpeedNote"></small>
+              </div>
+              <div class="uncal-dwell">
+                <label
+                  ><input type="checkbox" id="uncalDwell" disabled /> Enable dwell clicking
+                  (temporary, off by default)</label
+                >
+                <div class="uncal-bar"><i id="uncalDwellBar"></i></div>
+                <p id="uncalDwellStatus" class="uncal-note"></p>
+                <div class="uncal-actions">
+                  <label>Dwell (ms) <input type="number" id="uncalDwellMs" min="500" max="5000" step="100" value="1200" /></label>
+                  <label>Tolerance <input type="number" id="uncalDwellTol" min="2" max="50" step="1" value="8" /></label>
+                  <button id="uncalDwellApply" class="quiet">Apply</button>
+                  <span id="uncalClicks" class="uncal-note"></span>
+                </div>
+                <small id="uncalDwellNote"></small>
+              </div>
+              <div class="uncal-grid">
+                <div>
+                  <span class="eyebrow">WHICH ROTATION MOVES THE POINTER</span>
+                  <ul id="uncalRotations"></ul>
+                </div>
+                <div>
+                  <span class="eyebrow">ACTIVE AXIS MAPPING (MEASURED ON THE BENCH)</span>
+                  <ul id="uncalMapping"></ul>
+                  <small id="uncalParams"></small>
+                </div>
+              </div>
+            </article>
+            <div class="setup-grid">
+              <article class="panel calibration">
+                <div class="panel-head">
+                  <span class="eyebrow">MOTION CALIBRATION</span
+                  ><span class="tag" id="calSource">SYNTHETIC USER C</span>
+                </div>
+                <div class="orbit" id="orbit">
+                  <div class="orbit-grid"></div>
+                  <div class="ring ring-one"></div>
+                  <div class="ring ring-two"></div>
+                  <div class="cross-h"></div>
+                  <div class="cross-v"></div>
+                  <span class="direction north">UP</span><span class="direction south">DOWN</span
+                  ><span class="direction west">LEFT</span><span class="direction east">RIGHT</span
+                  ><svg
+                    class="head-graphic"
+                    id="headGraphic"
+                    viewBox="0 0 120 140"
+                    aria-label="Live head movement"
+                  >
+                    <path d="M28 40L43 17H77L94 42V82L75 111H46L28 84Z" />
+                    <path
+                      d="M28 47L45 53M94 47L77 53M54 51L51 73L64 78M43 90L73 90M44 110L38 131H85L78 110"
+                    />
+                    <path class="face" d="M43 53H48M73 53H79" />
+                  </svg>
+                  <div class="axis-dot"></div>
+                </div>
+                <span class="eyebrow" id="phaseLabel">A PERSONAL MOTION SIGNATURE</span>
+                <h2 id="instruction">Start with your natural movement</h2>
+                <p id="phaseDescription">
+                  The simulator will collect rest and four directional samples.
+                </p>
+                <div class="progress"><div id="calProgress"></div></div>
+                <div class="progress-label">
+                  <span id="phaseNumber">6 collection phases · analysis · validation · save</span
+                  ><span id="calPercent">0%</span>
+                </div>
+                <div class="actions">
+                  <button id="calibrate" class="primary">Start calibration <span>↗</span></button
+                  ><button id="cancel" class="quiet" disabled>Cancel</button>
+                </div>
+                <p class="caption" id="calEvidence">
+                  Demo samples are mathematical inputs, not clinical or user evidence.
+                </p>
+              </article>
+              <div class="right-stack">
+                <article class="panel live">
+                  <div class="panel-head">
+                    <span class="eyebrow" id="motionHeading">SIMULATED MOTION</span
+                    ><span class="live-dot" id="motionSource">● SYNTHETIC</span>
+                  </div>
+                  <canvas id="trace" height="120" aria-label="Yaw and pitch motion trace"></canvas>
+                  <div class="legend">
+                    <span>― Yaw</span><span>― Pitch</span
+                    ><span id="motionValues">0.0 / 0.0 °/s</span>
+                  </div>
+                  <div class="stability">
+                    <span>Motion stability <b id="stabilityValue">—</b></span>
+                    <div class="progress"><div id="stabilityBar"></div></div>
+                    <small>Illustrative 1 / (1 + filtered speed), not a comfort score.</small>
+                  </div>
+                </article>
+                <article class="panel profile">
+                  <div class="panel-head">
+                    <span class="eyebrow">YOUR MOTION PROFILE</span
+                    ><span id="profileBadge" class="tag">NOT CALIBRATED</span>
+                  </div>
+                  <div class="profile-map">
+                    <span class="gain up">UP <b id="gainUp">—</b></span
+                    ><span class="gain left">LEFT <b id="gainLeft">—</b></span
+                    ><span class="diamond">◈</span
+                    ><span class="gain right">RIGHT <b id="gainRight">—</b></span
+                    ><span class="gain down">DOWN <b id="gainDown">—</b></span>
+                  </div>
+                  <div class="profile-stats">
+                    <span>Deadzone <b id="deadzone">—</b></span
+                    ><span>Filter α <b id="alpha">—</b></span>
+                  </div>
+                  <div class="actions">
+                    <button id="load" class="quiet">Load saved</button
+                    ><button id="exportProfile" class="quiet">Export profile ↓</button>
+                  </div>
+                  <p class="caption" id="gainEvidence">
+                    Directional gain: output pixels / degree. Generated from simulated samples.
+                  </p>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section id="control" class="view" hidden>
+            <div class="page-top">
+              <div>
+                <span class="eyebrow">02 / CONTROL STUDIO</span>
+                <h1>Make motion<br /><em>meaningful.</em></h1>
+                <p>
+                  WASD to point · Q/E to roll · dwell clicks automatically · P is the helper pause.
+                </p>
+              </div>
+              <button id="resume" class="primary">Helper: resume control ↗</button>
+            </div>
+            <div id="studioChips" class="hf-chips" role="status" aria-live="polite"></div>
+            <div class="control-grid">
+              <article class="panel">
+                <div class="panel-head">
+                  <span class="eyebrow">LIVE CONTROL SPACE</span
+                  ><span id="cursorLabel" class="tag">WARNING</span>
+                </div>
+                <div id="studio" class="point-space">
+                  <div class="space-grid"></div>
+                  <div class="practice-target" data-target="1">◎<small>SELECT</small></div>
+                  <div class="practice-target second" data-target="2">◇<small>DRAG</small></div>
+                  <p class="space-hint">
+                    Your NodX cursor lives inside this companion.<br />Bluetooth HID uses the host’s
+                    standard cursor.
+                  </p>
+                </div>
+                <div class="studio-result" id="studioResult">
+                  Selections: 0 · Scroll: 0 · Drag distance: 0 px
+                </div>
+              </article>
+              <article class="panel controls">
+                <span class="eyebrow">INPUT & INTENT</span
+                ><label
+                  >Yaw <output id="yawOut">0 °/s</output
+                  ><input
+                    aria-label="Yaw rate"
+                    type="range"
+                    id="yaw"
+                    min="-60"
+                    max="60"
+                    value="0" /></label
+                ><label
+                  >Pitch <output id="pitchOut">0 °/s</output
+                  ><input
+                    aria-label="Pitch rate"
+                    type="range"
+                    id="pitch"
+                    min="-60"
+                    max="60"
+                    value="0" /></label
+                ><label
+                  >Roll <output id="rollOut">0 °/s</output
+                  ><input
+                    aria-label="Roll rate"
+                    type="range"
+                    id="roll"
+                    min="-60"
+                    max="60"
+                    value="0" /></label
+                ><button id="switch" class="quiet wide">
+                  Hold accessible switch (legacy compatibility mode only)
+                </button>
+                <div id="studioHandsFree" class="hf-group">
+                  <span class="eyebrow">HANDS-FREE · SIMULATED INPUT</span>
+                  <label class="toggle" id="enableSwitchRow"
+                    ><input type="checkbox" id="enableSwitch" /> Maintained enable switch ON</label
+                  ><button id="enableButton" class="quiet wide" hidden>
+                    Hold to press the enable button</button
+                  ><button id="gesturePause" class="quiet wide">
+                    Perform pause / resume gesture</button
+                  ><button id="gestureDrag" class="quiet wide">Perform drag gesture</button>
+                  <p class="caption" id="studioHfNote">
+                    Simulated. A real user performs their own trained pattern.
+                  </p>
+                </div>
+                <label class="toggle"><input type="checkbox" id="dwell" /> Dwell selection</label
+                ><label class="toggle"
+                  ><input type="checkbox" id="scroll" checked /> Roll scrolling</label
+                >
+                <div class="dwell-status">
+                  <span id="dwellLabel">Dwell: IDLE</span>
+                  <div class="progress"><div id="dwellBar"></div></div>
+                </div>
+                <hr />
+                <label
+                  >Fault injection<select id="fault">
+                    <option value="0">Healthy samples</option>
+                    <option value="1">NaN gyroscope</option>
+                    <option value="2">Extreme gyroscope</option>
+                    <option value="3">Sensor timeout</option>
+                    <option value="4">Sensor disconnect</option>
+                    <option value="5">Frozen timestamp</option>
+                    <option value="6">HID send failure</option>
+                  </select></label
+                ><label class="toggle"
+                  ><input type="checkbox" id="ble" checked /> Simulated BLE connected</label
+                ><button id="record" class="quiet">Record raw samples</button
+                ><button id="corrupt" class="danger">Inject profile corruption</button>
+                <p class="caption">
+                  Corrupts the demo profile slots. Recalibrate to create a new valid profile.
+                </p>
+              </article>
+            </div>
+          </section>
+          <section id="lab" class="view" hidden>
+            <div class="page-top">
+              <div>
+                <span class="eyebrow">03 / PERFORMANCE LAB</span>
+                <h1>Measure.<br /><em>Don’t assume.</em></h1>
+                <p>Fitts-style target selection. Every attempt becomes a raw trial.</p>
+              </div>
+              <div class="session">
+                <span class="eyebrow">EVIDENCE STANDARD</span><strong>Observed results only</strong
+                ><span>Nominal ID / mean selection time. Not effective throughput.</span>
+              </div>
+            </div>
+            <div class="lab-toolbar panel">
+              <label
+                >Condition<select id="condition">
+                  <option value="GENERIC">Generic START profile</option>
+                  <option value="ADAPTIVE">Saved adaptive profile</option>
+                </select></label
+              ><label
+                >Input source<select id="inputSource">
+                  <option value="SIMULATED">NodX simulator</option>
+                  <option value="HOST_POINTER">Host pointer / later BLE</option>
+                </select></label
+              ><button id="startLab" class="primary">Start 12 trials ↗</button
+              ><button id="stopLab" class="quiet" disabled>Abort</button
+              ><button id="exportTrials" class="quiet">Export raw CSV ↓</button>
+            </div>
+            <article class="panel">
+              <div class="panel-head">
+                <span id="trialLabel" class="eyebrow">POINTING EXPERIMENT</span
+                ><span id="labStatus" class="tag">NO RESULTS YET</span>
+              </div>
+              <div id="arena" class="point-space arena">
+                <div class="space-grid"></div>
+                <div id="labTarget" hidden></div>
+                <div id="labWelcome">
+                  <span>◎</span>
+                  <h2>One target. One measured attempt.</h2>
+                  <p>
+                    Click the starting point, then select each target.<br />Misses count. Simulated
+                    results stay labeled.
+                  </p>
+                </div>
+              </div>
+            </article>
+            <div id="metrics" class="metrics"></div>
+            <p class="caption">
+              Desktop host-pointer blocks measure ordinary host clicks; changing the NodX profile
+              does not alter that pointer. Selection time includes dwell when enabled. Practice,
+              fatigue, host acceleration and target geometry affect results. Counterbalance
+              condition order for real comparisons; these are exploratory trials.
+            </p>
+          </section>
+          <section id="handsfree" class="view" hidden>
+            <div class="page-top">
+              <div>
+                <span class="eyebrow">04 / HANDS-FREE SETUP</span>
+                <h1>No selection buttons.<br /><em>Just you.</em></h1>
+                <p>
+                  A helper trains two gestures once. The only physical control is one enable button
+                  that permits or disables control; it never selects, pauses or resumes.
+                </p>
+              </div>
+              <div class="session">
+                <span class="eyebrow">INTERACTION MODE</span
+                ><strong id="hfMode">LEGACY SWITCH MODE</strong
+                ><span>All gesture values are START values, unvalidated.</span>
+              </div>
+            </div>
+            <div id="hfChips" class="hf-chips" role="status" aria-live="polite"></div>
+            <div class="hf-grid">
+              <article class="panel">
+                <div class="panel-head">
+                  <span class="eyebrow">HELPER SETUP</span><span class="tag">HELPER ONLY</span>
+                </div>
+                <ol id="hfSteps" class="hf-steps"></ol>
+                <label class="hf-field"
+                  >Enable input (helper decision)
+                  <select id="hfEnableKind">
+                    <option value="momentary">
+                      Push button: one press permits, the next disables (default)
+                    </option>
+                    <option value="maintained">
+                      Maintained switch: its position is the permission (compatibility)
+                    </option>
+                  </select></label
+                >
+                <p class="caption">
+                  Wire the button between the enable GPIO and GND. Permission is never saved: it is
+                  off after every restart and fault, and permitting never resumes control.
+                </p>
+                <label class="toggle"
+                  ><input type="checkbox" id="hfSwitchless" /> Qualify control without an enable
+                  input (helper decision)</label
+                >
+                <p class="caption">
+                  Only qualify this if no switch or button can be used; control then cannot be
+                  disabled by an input.
+                </p>
+                <label class="toggle"
+                  ><input type="checkbox" id="hfDemo" /> Movement-only demo (temporary, never
+                  saved)</label
+                >
+                <p class="caption">
+                  Switches off dwell clicks, drag and scrolling and bounds the pointer step, for a
+                  safe first look on real hardware. Turning it on or off pauses control; resume
+                  afterwards. It is off after every restart.
+                </p>
+                <div class="actions">
+                  <button id="hfCommit" class="primary">Convert and save setup</button
+                  ><button id="hfHelperResume" class="quiet">Resume control (helper)</button>
+                </div>
+                <hr />
+                <button id="hfLegacy" class="danger">Return to legacy compatibility mode</button>
+                <p class="caption">
+                  Legacy mode keeps the earlier physical-switch behaviour. It never turns on by
+                  itself and hands-free is never turned on silently either.
+                </p>
+              </article>
+              <article class="panel">
+                <div class="panel-head">
+                  <span class="eyebrow">GESTURE TRAINING</span
+                  ><span id="hfTrainTag" class="tag">IDLE</span>
+                </div>
+                <div class="hf-pair">
+                  <label
+                    >Pause / resume pattern (simulated)
+                    <select id="patternPause">
+                      <option value="nod2">Double nod</option>
+                      <option value="tilt2">Double sideways tilt</option>
+                      <option value="turn2">Double turn</option>
+                      <option value="nod3">Triple nod</option>
+                      <option value="tilt3">Triple sideways tilt</option>
+                    </select></label
+                  ><button id="trainPause" class="quiet">Train pause / resume</button
+                  ><label
+                    >Drag pattern (simulated)
+                    <select id="patternDrag">
+                      <option value="nod2">Double nod</option>
+                      <option value="tilt2" selected>Double sideways tilt</option>
+                      <option value="turn2">Double turn</option>
+                      <option value="nod3">Triple nod</option>
+                      <option value="tilt3">Triple sideways tilt</option>
+                    </select></label
+                  ><button id="trainDrag" class="quiet">Train drag</button>
+                </div>
+                <h2 id="hfPhase">No training in progress</h2>
+                <p id="hfReason" role="status" aria-live="polite">Choose a gesture to train.</p>
+                <div class="progress"><div id="hfProgress"></div></div>
+                <div class="progress-label">
+                  <span id="hfProgressText">0 of 4 examples</span>
+                </div>
+                <div class="actions">
+                  <button id="hfExample" class="quiet">Perform example (simulated)</button
+                  ><button id="hfAccept" class="primary">Accept pattern</button
+                  ><button id="hfCancel" class="quiet">Cancel training</button>
+                </div>
+                <p class="caption" id="hfHardwareNote">
+                  Real device: the user performs their own comfortable pattern. The patterns above
+                  only drive the simulators. Learned values are START values until measured.
+                </p>
+              </article>
+              <article class="panel hf-wide">
+                <div class="panel-head">
+                  <span class="eyebrow">STATUS AND RECOVERY</span
+                  ><span id="hfSaveTag" class="tag" hidden>SAVE FAILED</span>
+                </div>
+                <h2 id="hfGuideTitle">Waiting</h2>
+                <ul id="hfGuideLines" class="hf-guide"></ul>
+              </article>
+            </div>
+          </section>
+          <footer>
+            <span id="reason">Initializing shared control engine…</span
+            ><span>FAIL STATIONARY · EXPLICIT RESUME</span>
+          </footer>
+        </main>
+      </div>
+    </div>
+    <div id="nodxCursor" class="nodx-cursor" hidden>
+      <svg viewBox="0 0 48 48">
+        <circle class="dwell-ring" cx="24" cy="24" r="20" />
+        <path class="cursor-shape" d="M12 9L34 26L24 28L20 38Z" />
+        <path class="cursor-center" d="M18 20L26 26L22 28Z" /></svg
+      ><span id="cursorText">NORMAL</span>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

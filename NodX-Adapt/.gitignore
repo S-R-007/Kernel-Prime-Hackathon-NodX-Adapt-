@@ -1,0 +1,11 @@
+build/
+.pio/
+.venv/
+__pycache__/
+runtime/
+*.DS_Store
+artifacts/
+node_modules/
+# Bench logs from real hardware stay on this machine
+hardware-evidence/
+.venv-overlay/

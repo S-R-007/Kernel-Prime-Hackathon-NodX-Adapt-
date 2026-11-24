@@ -1,0 +1,61 @@
+Processing esp32s3 (platform: espressif32@6.12.0; board: esp32-s3-devkitc-1; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-s3-devkitc-1.html
+PLATFORM: Espressif 32 (6.12.0) > Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)
+HARDWARE: ESP32S3 240MHz, 320KB RAM, 8MB Flash
+DEBUG: Current (esp-builtin) On-board (esp-builtin) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 2.40900.250804 (4.9.0) 
+ - toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 
+ - toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- NimBLE-Arduino @ 2.3.6
+|-- Preferences @ 2.0.0
+|-- Wire @ 2.0.0
+Building in release mode
+Retrieving maximum program size .pio/build/esp32s3/firmware.elf
+Checking size .pio/build/esp32s3/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]  13.0% (used 42576 bytes from 327680 bytes)
+Flash: [==        ]  22.7% (used 757785 bytes from 3342336 bytes)
+========================= [SUCCESS] Took 2.29 seconds =========================
+
+Processing esp32s3-sim (platform: espressif32@6.12.0; board: esp32-s3-devkitc-1; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-s3-devkitc-1.html
+PLATFORM: Espressif 32 (6.12.0) > Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)
+HARDWARE: ESP32S3 240MHz, 320KB RAM, 8MB Flash
+DEBUG: Current (esp-builtin) On-board (esp-builtin) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 2.40900.250804 (4.9.0) 
+ - toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 
+ - toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- NimBLE-Arduino @ 2.3.6
+|-- Preferences @ 2.0.0
+|-- Wire @ 2.0.0
+Building in release mode
+Retrieving maximum program size .pio/build/esp32s3-sim/firmware.elf
+Checking size .pio/build/esp32s3-sim/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]  13.0% (used 42600 bytes from 327680 bytes)
+Flash: [==        ]  22.7% (used 758789 bytes from 3342336 bytes)
+========================= [SUCCESS] Took 2.15 seconds =========================
+
+Environment    Status    Duration
+-------------  --------  ------------
+esp32s3        SUCCESS   00:00:02.286
+esp32s3-sim    SUCCESS   00:00:02.155
+========================= 2 succeeded in 00:00:04.441 =========================
